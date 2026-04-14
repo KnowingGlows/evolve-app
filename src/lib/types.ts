@@ -4,6 +4,9 @@ export interface User {
   displayName: string;
   brands: string[];
   createdAt: string;
+  role: "admin" | "member";
+  status: "pending" | "active" | "denied";
+  photoURL?: string;
 }
 
 export interface Brand {

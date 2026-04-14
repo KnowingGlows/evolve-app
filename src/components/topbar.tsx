@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, Plus, ChevronDown, LogOut, User } from "lucide-react";
+import { Menu, Plus, ChevronDown, LogOut, User, Search, Command } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useBrand } from "@/lib/brand-context";
 
 interface TopbarProps {
   title: string;
   onMenuClick: () => void;
+  onCmdK?: () => void;
 }
 
-export function Topbar({ title, onMenuClick }: TopbarProps) {
+export function Topbar({ title, onMenuClick, onCmdK }: TopbarProps) {
   const { user, logout } = useAuth();
   const { brand, brands, selectBrand, createBrand } = useBrand();
   const [brandMenuOpen, setBrandMenuOpen] = useState(false);
@@ -37,6 +38,18 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Cmd+K Search */}
+          {onCmdK && (
+            <button
+              onClick={onCmdK}
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-white/40 text-sm hover:bg-white/[0.05] hover:text-white/60 transition-colors"
+            >
+              <Search size={14} />
+              <span className="hidden md:inline">Search or jump…</span>
+              <kbd className="ml-2 px-1.5 py-0.5 text-[10px] bg-white/[0.04] border border-white/[0.08] rounded font-mono">⌘K</kbd>
+            </button>
+          )}
+
           {/* Brand Switcher */}
           <div className="relative">
             <button

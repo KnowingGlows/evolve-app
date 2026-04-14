@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { BrandProvider, useBrand } from "@/lib/brand-context";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
+import { CmdK } from "@/components/cmd-k";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Overview",
@@ -27,6 +28,22 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showOnboard, setShowOnboard] = useState(false);
   const [newName, setNewName] = useState("");
+  const [cmdKOpen, setCmdKOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdKOpen((v) => !v);
+      }
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        setCmdKOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     if (!loading && brands.length === 0) {
@@ -88,9 +105,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:ml-[260px]">
-        <Topbar title={title} onMenuClick={() => setSidebarOpen(true)} />
+        <Topbar title={title} onMenuClick={() => setSidebarOpen(true)} onCmdK={() => setCmdKOpen(true)} />
         <main className="p-6 lg:p-8 animate-fade-in">{children}</main>
       </div>
+      <CmdK open={cmdKOpen} onClose={() => setCmdKOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Star, Plus, ExternalLink } from "lucide-react";
 import { useBrand } from "@/lib/brand-context";
 import { useCollection } from "@/hooks/use-collection";
@@ -19,6 +20,17 @@ export default function CreatorsPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setForm(defaultForm);
+      setEditingId(null);
+      setPanelOpen(true);
+      router.replace("/dashboard/creators");
+    }
+  }, [searchParams, router]);
 
   if (!brand) return null;
 
