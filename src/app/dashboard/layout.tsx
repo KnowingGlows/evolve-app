@@ -20,6 +20,8 @@ const pageTitles: Record<string, string> = {
   "/dashboard/cro": "CRO Tests",
   "/dashboard/cro-roadmap": "CRO Roadmap",
   "/dashboard/calendar": "Calendar",
+  "/dashboard/users": "Users & Permissions",
+  "/dashboard/settings": "Settings",
 };
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
@@ -113,6 +115,66 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ApprovalGate({ children }: { children: React.ReactNode }) {
+  const { userDoc, logout } = useAuth();
+
+  if (!userDoc) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (userDoc.status === "pending") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="fixed inset-0 bg-[#0a0a12]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.08),transparent_60%)]" />
+        </div>
+        <div className="relative w-full max-w-md text-center">
+          <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 mx-auto mb-6 flex items-center justify-center">
+            <svg className="w-7 h-7 text-violet-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Waiting for approval</h1>
+          <p className="text-sm text-white/40 mb-8">
+            Your account is pending admin approval. You&apos;ll get access once the admin lets you in.
+          </p>
+          <p className="text-xs text-white/25 mb-6">Signed in as {userDoc.email}</p>
+          <button
+            onClick={logout}
+            className="px-4 py-2.5 bg-white/5 border border-white/10 text-white/60 text-sm rounded-xl hover:bg-white/10 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (userDoc.status === "denied") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="fixed inset-0 bg-[#0a0a12]" />
+        <div className="relative w-full max-w-md text-center">
+          <h1 className="text-2xl font-bold text-white mb-3">Access denied</h1>
+          <p className="text-sm text-white/40 mb-8">Your account access was denied. Contact the admin if this is a mistake.</p>
+          <button
+            onClick={logout}
+            className="px-4 py-2.5 bg-white/5 border border-white/10 text-white/60 text-sm rounded-xl hover:bg-white/10 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -132,8 +194,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <BrandProvider>
-      <DashboardContent>{children}</DashboardContent>
-    </BrandProvider>
+    <ApprovalGate>
+      <BrandProvider>
+        <DashboardContent>{children}</DashboardContent>
+      </BrandProvider>
+    </ApprovalGate>
   );
 }

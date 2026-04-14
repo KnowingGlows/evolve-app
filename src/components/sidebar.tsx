@@ -3,21 +3,15 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard,
-  Palette,
-  ScrollText,
-  Heart,
-  Diamond,
-  Users,
-  Eye,
-  Star,
-  TrendingUp,
-  Map,
-  Calendar,
-  ChevronLeft,
+  LayoutDashboard, Palette, ScrollText, Heart, Diamond, Users,
+  Eye, Star, TrendingUp, Map, Settings, UserCog,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
-const navSections = [
+type NavItem = { icon: React.ElementType; label: string; href: string; adminOnly?: boolean };
+type NavSection = { label: string; items: NavItem[] };
+
+const navSections: NavSection[] = [
   {
     label: "Dashboard",
     items: [{ icon: LayoutDashboard, label: "Overview", href: "/dashboard" }],
@@ -42,10 +36,10 @@ const navSections = [
     ],
   },
   {
-    label: "Planning",
+    label: "Workspace",
     items: [
-      { icon: Calendar, label: "2025 Calendar", href: "/dashboard/calendar?year=2025" },
-      { icon: Calendar, label: "2024 Calendar", href: "/dashboard/calendar?year=2024" },
+      { icon: UserCog, label: "Users", href: "/dashboard/users", adminOnly: true },
+      { icon: Settings, label: "Settings", href: "/dashboard/settings" },
     ],
   },
 ];
@@ -57,10 +51,10 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
 
   return (
     <>
-      {/* Mobile backdrop */}
       {open && (
         <div className="fixed inset-0 bg-black/60 z-[99] lg:hidden" onClick={onClose} />
       )}
@@ -69,7 +63,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Header */}
         <div className="px-6 py-6 border-b border-white/[0.06]">
           <h1 className="text-lg font-bold bg-gradient-to-r from-violet-400 to-violet-600 bg-clip-text text-transparent">
             Evolve 2.0
@@ -77,41 +70,43 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <p className="text-[10px] text-white/30 uppercase tracking-[2px] mt-1">Growth Guide</p>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin">
-          {navSections.map((section) => (
-            <div key={section.label}>
-              <div className="px-6 py-2 text-[10px] font-semibold text-white/20 uppercase tracking-[1.5px]">
-                {section.label}
+          {navSections.map((section) => {
+            const visibleItems = section.items.filter((it) => !it.adminOnly || isAdmin);
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={section.label}>
+                <div className="px-6 py-2 text-[10px] font-semibold text-white/20 uppercase tracking-[1.5px]">
+                  {section.label}
+                </div>
+                {visibleItems.map((item) => {
+                  const isActive =
+                    item.href === "/dashboard"
+                      ? pathname === "/dashboard"
+                      : pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      className={`flex items-center gap-3 px-6 py-2.5 text-[13px] transition-all border-l-2 ${
+                        isActive
+                          ? "bg-violet-500/[0.08] text-violet-400 border-violet-500"
+                          : "text-white/40 border-transparent hover:text-white/70 hover:bg-white/[0.02]"
+                      }`}
+                    >
+                      <item.icon size={16} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </div>
-              {section.items.map((item) => {
-                const isActive =
-                  item.href === "/dashboard"
-                    ? pathname === "/dashboard"
-                    : pathname.startsWith(item.href.split("?")[0]);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className={`flex items-center gap-3 px-6 py-2.5 text-[13px] transition-all border-l-2 ${
-                      isActive
-                        ? "bg-violet-500/[0.08] text-violet-400 border-violet-500"
-                        : "text-white/40 border-transparent hover:text-white/70 hover:bg-white/[0.02]"
-                    }`}
-                  >
-                    <item.icon size={16} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-white/[0.06] text-[11px] text-white/20">
-          Growth Guide &middot; Evolve 2.0
+          Growth Guide · Evolve 2.0
         </div>
       </aside>
     </>

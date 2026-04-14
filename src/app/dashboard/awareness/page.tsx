@@ -1,65 +1,101 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Eye, Plus } from "lucide-react";
 import { useBrand } from "@/lib/brand-context";
 import { useCollection } from "@/hooks/use-collection";
 import { useToast } from "@/lib/toast-context";
 import { addEntry, updateEntry, deleteEntry } from "@/lib/firestore";
-import { SlideOver } from "@/components/ui/slide-over";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FullScreenEditor } from "@/components/ui/full-screen-editor";
+import { RichTextField } from "@/components/ui/rich-text-field";
 import type { AwarenessEntry } from "@/lib/types";
 
 const levels = [
-  { key: "most", label: "Most Aware", color: "text-emerald-400", bg: "bg-emerald-500/5 border-emerald-500/10" },
-  { key: "productAware", label: "Product Aware", color: "text-teal-400", bg: "bg-teal-500/5 border-teal-500/10" },
-  { key: "solution", label: "Solution Aware", color: "text-blue-400", bg: "bg-blue-500/5 border-blue-500/10" },
-  { key: "problem", label: "Problem Aware", color: "text-amber-400", bg: "bg-amber-500/5 border-amber-500/10" },
-  { key: "unaware", label: "Unaware", color: "text-red-400", bg: "bg-red-500/5 border-red-500/10" },
-] as const;
+  { key: "most" as const, label: "Most Aware", color: "text-emerald-400", bg: "bg-emerald-500/5 border-emerald-500/15", hint: "They know you and the product — just need the right deal" },
+  { key: "productAware" as const, label: "Product Aware", color: "text-teal-400", bg: "bg-teal-500/5 border-teal-500/15", hint: "Know your product but not sold yet" },
+  { key: "solution" as const, label: "Solution Aware", color: "text-blue-400", bg: "bg-blue-500/5 border-blue-500/15", hint: "Know a solution exists but not your product" },
+  { key: "problem" as const, label: "Problem Aware", color: "text-amber-400", bg: "bg-amber-500/5 border-amber-500/15", hint: "Know they have a problem but don't know solutions" },
+  { key: "unaware" as const, label: "Unaware", color: "text-red-400", bg: "bg-red-500/5 border-red-500/15", hint: "No idea they even have the problem" },
+];
 
 const defaultForm = { product: "", most: "", productAware: "", solution: "", problem: "", unaware: "" };
+
+function SectionLabel({ number, title, hint }: { number: number; title: string; hint?: string }) {
+  return (
+    <div className="flex items-baseline gap-3 mt-12 mb-4 pb-3 border-b border-white/[0.06]">
+      <span className="text-[10px] font-mono text-violet-400/70 tracking-widest">0{number}</span>
+      <h3 className="text-sm font-semibold text-white uppercase tracking-wider">{title}</h3>
+      {hint && <span className="text-[11px] text-white/30 ml-auto">{hint}</span>}
+    </div>
+  );
+}
 
 export default function AwarenessPage() {
   const { brand } = useBrand();
   const { items, loading } = useCollection<AwarenessEntry>("awareness");
   const { toast } = useToast();
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [dirty, setDirty] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setForm(defaultForm); setEditingId(null); setDirty(false); setEditorOpen(true);
+      router.replace("/dashboard/awareness");
+    }
+  }, [searchParams, router]);
 
   if (!brand) return null;
 
-  const openNew = () => { setForm(defaultForm); setEditingId(null); setPanelOpen(true); };
+  const openNew = () => { setForm(defaultForm); setEditingId(null); setDirty(false); setEditorOpen(true); };
   const openEdit = (item: AwarenessEntry) => {
     setForm({ product: item.product, most: item.most, productAware: item.productAware, solution: item.solution, problem: item.problem, unaware: item.unaware });
-    setEditingId(item.id);
-    setPanelOpen(true);
+    setEditingId(item.id); setDirty(false); setEditorOpen(true);
   };
 
   const handleSave = async () => {
+    if (!form.product.trim()) { toast("Add a product name first", "error"); return; }
     if (editingId) await updateEntry(brand.id, "awareness", editingId, form);
     else await addEntry(brand.id, "awareness", form);
-    setPanelOpen(false);
-    toast("Saved");
+    setEditorOpen(false); setDirty(false);
+    toast(editingId ? "Updated" : "Map created");
   };
 
   const handleDelete = async () => {
-    if (editingId && confirm("Delete?")) {
+    if (editingId && confirm("Delete this awareness map?")) {
       await deleteEntry(brand.id, "awareness", editingId);
-      setPanelOpen(false);
+      setEditorOpen(false);
       toast("Deleted");
     }
   };
 
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const inputClass = "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-violet-500/50 transition-colors";
+  const ensureEntry = async (): Promise<string | null> => {
+    const data = { ...form, product: form.product.trim() || "Untitled product" };
+    if (editingId) {
+      await updateEntry(brand.id, "awareness", editingId, data);
+      setForm((f) => ({ ...f, product: data.product })); setDirty(false);
+      return editingId;
+    }
+    const id = await addEntry(brand.id, "awareness", data);
+    setEditingId(id); setForm((f) => ({ ...f, product: data.product })); setDirty(false);
+    toast("Draft saved");
+    return id;
+  };
+
+  const set = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => { setForm((f) => ({ ...f, [key]: val })); setDirty(true); };
+
+  const stripHtml = (html: string) => html.replace(/<[^>]+>/g, "").trim();
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <div />
-        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-xl transition-colors">
+        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-xl transition-colors shadow-lg shadow-violet-500/20">
           <Plus size={16} /> New Product
         </button>
       </div>
@@ -75,8 +111,8 @@ export default function AwarenessPage() {
                 {levels.map((level) => (
                   <div key={level.key} className={`${level.bg} border rounded-xl p-4 min-h-[100px]`}>
                     <p className={`text-[10px] font-bold uppercase tracking-wider ${level.color} mb-2`}>{level.label}</p>
-                    <p className="text-xs text-white/40 leading-relaxed whitespace-pre-line">
-                      {(item as unknown as Record<string, string>)[level.key] || "—"}
+                    <p className="text-xs text-white/40 leading-relaxed line-clamp-5">
+                      {stripHtml((item as unknown as Record<string, string>)[level.key]) || "—"}
                     </p>
                   </div>
                 ))}
@@ -86,23 +122,50 @@ export default function AwarenessPage() {
         </div>
       )}
 
-      <SlideOver open={panelOpen} onClose={() => setPanelOpen(false)} title={editingId ? "Edit Awareness Map" : "New Product Awareness Map"} wide>
-        <div className="space-y-5">
-          <div><label className="block text-xs font-medium text-white/30 mb-1.5">Product Name</label><input value={form.product} onChange={(e) => set("product", e.target.value)} className={inputClass} /></div>
-          <div><label className="block text-xs font-medium text-emerald-400/60 mb-1.5">Most Aware — Questions & Answers</label><textarea value={form.most} onChange={(e) => set("most", e.target.value)} rows={3} placeholder="What questions do the most aware buyers ask?" className={inputClass} /></div>
-          <div><label className="block text-xs font-medium text-teal-400/60 mb-1.5">Product Aware — Questions & Answers</label><textarea value={form.productAware} onChange={(e) => set("productAware", e.target.value)} rows={3} className={inputClass} /></div>
-          <div><label className="block text-xs font-medium text-blue-400/60 mb-1.5">Solution Aware — Questions & Answers</label><textarea value={form.solution} onChange={(e) => set("solution", e.target.value)} rows={3} className={inputClass} /></div>
-          <div><label className="block text-xs font-medium text-amber-400/60 mb-1.5">Problem Aware — Questions & Answers</label><textarea value={form.problem} onChange={(e) => set("problem", e.target.value)} rows={3} className={inputClass} /></div>
-          <div><label className="block text-xs font-medium text-red-400/60 mb-1.5">Unaware</label><textarea value={form.unaware} onChange={(e) => set("unaware", e.target.value)} rows={3} className={inputClass} /></div>
-          <div className="flex justify-between pt-4 border-t border-white/[0.06]">
-            {editingId && <button onClick={handleDelete} className="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl hover:bg-red-500/20 transition-colors">Delete</button>}
-            <div className="flex gap-3 ml-auto">
-              <button onClick={() => setPanelOpen(false)} className="px-4 py-2.5 bg-white/5 text-white/40 text-sm rounded-xl hover:bg-white/10 transition-colors">Cancel</button>
-              <button onClick={handleSave} className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-xl transition-colors">Save</button>
-            </div>
-          </div>
+      <FullScreenEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onSave={handleSave}
+        onDelete={editingId ? handleDelete : undefined}
+        saveLabel={editingId ? "Save Changes" : "Create Map"}
+        unsaved={dirty}
+        meta={<>
+          <span className="uppercase tracking-widest text-[10px] text-violet-400/70 font-mono">Awareness Map</span>
+          {dirty && <span className="text-amber-400/70">• Unsaved</span>}
+        </>}
+      >
+        <div className="mb-2">
+          <label className="block text-[10px] font-mono text-white/30 tracking-widest uppercase mb-2">Product</label>
+          <textarea
+            value={form.product}
+            onChange={(e) => set("product", e.target.value)}
+            placeholder="What product are you mapping?"
+            autoFocus={!editingId}
+            rows={1}
+            className="w-full bg-transparent border-0 text-4xl font-bold text-white placeholder-white/15 outline-none resize-none leading-tight"
+            onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }}
+          />
         </div>
-      </SlideOver>
+
+        {levels.map((level, i) => (
+          <div key={level.key}>
+            <SectionLabel number={i + 1} title={level.label} hint={level.hint} />
+            <RichTextField
+              label={`${level.label} — Questions & Answers`}
+              value={(form as unknown as Record<string, string>)[level.key] || ""}
+              onChange={(v) => set(level.key, v)}
+              placeholder={`What questions are they asking at the "${level.label}" stage? What are the answers that move them forward?`}
+              minHeight={200}
+              collection="awareness"
+              entryId={editingId}
+              field={level.key}
+              onEnsureEntry={ensureEntry}
+            />
+          </div>
+        ))}
+
+        <div className="h-16" />
+      </FullScreenEditor>
     </div>
   );
 }

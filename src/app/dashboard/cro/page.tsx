@@ -83,6 +83,24 @@ export default function CroPage() {
     toast(editingId ? "Updated" : "LP test created");
   };
 
+  const ensureEntry = async (): Promise<string | null> => {
+    let concept = form.concept.trim();
+    if (!concept) concept = "Untitled LP test";
+    const data = { ...form, concept };
+    if (editingId) {
+      await updateEntry(brand.id, "cro", editingId, data);
+      setForm((f) => ({ ...f, concept }));
+      setDirty(false);
+      return editingId;
+    }
+    const newId = await addEntry(brand.id, "cro", data);
+    setEditingId(newId);
+    setForm((f) => ({ ...f, concept }));
+    setDirty(false);
+    toast("Draft saved");
+    return newId;
+  };
+
   const handleDelete = async () => {
     if (editingId && confirm("Delete this LP test?")) {
       await deleteEntry(brand.id, "cro", editingId);
@@ -218,6 +236,7 @@ export default function CroPage() {
           collection="cro"
           entryId={editingId}
           field="explanation"
+          onEnsureEntry={ensureEntry}
         />
 
         <SectionLabel number={4} title="Results & Learnings" />
@@ -239,6 +258,7 @@ export default function CroPage() {
             collection="cro"
             entryId={editingId}
             field="learnings"
+            onEnsureEntry={ensureEntry}
           />
         </div>
 

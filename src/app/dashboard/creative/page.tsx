@@ -126,6 +126,26 @@ export default function CreativePage() {
     toast(editingId ? "Updated" : "Concept created");
   };
 
+  // Save-and-return-id for the full-page doc editor.
+  // If no concept yet, auto-fill a placeholder so the entry can be saved.
+  const ensureEntry = async (): Promise<string | null> => {
+    let concept = form.concept.trim();
+    if (!concept) concept = "Untitled concept";
+    const data = { ...form, concept };
+    if (editingId) {
+      await updateEntry(brand.id, "creative", editingId, data);
+      setForm((f) => ({ ...f, concept }));
+      setDirty(false);
+      return editingId;
+    }
+    const newId = await addEntry(brand.id, "creative", data);
+    setEditingId(newId);
+    setForm((f) => ({ ...f, concept }));
+    setDirty(false);
+    toast("Draft saved");
+    return newId;
+  };
+
   const handleDelete = async () => {
     if (editingId && confirm("Delete this ad concept?")) {
       await deleteEntry(brand.id, "creative", editingId);
@@ -328,6 +348,7 @@ What do you want them to do?`}
           collection="creative"
           entryId={editingId}
           field="brief"
+          onEnsureEntry={ensureEntry}
         />
 
         {/* 04 Execution */}
@@ -372,6 +393,7 @@ What do you want them to do?`}
             collection="creative"
             entryId={editingId}
             field="learnings"
+            onEnsureEntry={ensureEntry}
           />
         </div>
 

@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search, LayoutDashboard, Palette, ScrollText, Heart, Diamond, Users,
-  Eye, Star, TrendingUp, Map, Calendar, Plus, ArrowRight, CornerDownLeft,
+  Eye, Star, TrendingUp, Map, Plus, CornerDownLeft, Settings, UserCog,
 } from "lucide-react";
 import { useBrand } from "@/lib/brand-context";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { addEntry } from "@/lib/firestore";
 
@@ -28,6 +29,7 @@ type Action = {
 export function CmdK({ open, onClose }: CmdKProps) {
   const router = useRouter();
   const { brand } = useBrand();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
@@ -108,10 +110,10 @@ export function CmdK({ open, onClose }: CmdKProps) {
       { id: "nav-creators", label: "Creators", icon: Star, group: "Navigate", run: () => go("/dashboard/creators") },
       { id: "nav-cro", label: "CRO Tests", icon: TrendingUp, group: "Navigate", run: () => go("/dashboard/cro") },
       { id: "nav-cro-roadmap", label: "CRO Roadmap", icon: Map, group: "Navigate", run: () => go("/dashboard/cro-roadmap") },
-      { id: "nav-cal-2025", label: "2025 Calendar", icon: Calendar, group: "Navigate", run: () => go("/dashboard/calendar?year=2025") },
-      { id: "nav-cal-2024", label: "2024 Calendar", icon: Calendar, group: "Navigate", run: () => go("/dashboard/calendar?year=2024") },
+      { id: "nav-settings", label: "Settings", icon: Settings, group: "Workspace", run: () => go("/dashboard/settings") },
+      ...(isAdmin ? [{ id: "nav-users", label: "Users & Permissions", icon: UserCog, group: "Workspace", run: () => go("/dashboard/users") }] : []),
     ];
-  }, [brand, mode, draft, router, toast]);
+  }, [brand, mode, draft, router, toast, isAdmin]);
 
   const filtered = useMemo(() => {
     if (mode !== "root") return actions;
